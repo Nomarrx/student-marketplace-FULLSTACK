@@ -45,10 +45,10 @@ export function useAuth() {
     localStorage.removeItem('token');
   };
 
-  const fetchCurrentUser = async () => {
+const fetchCurrentUser = async () => {
     const storedToken = localStorage.getItem('token');
     if (!storedToken) {
-      console.log('No token found, user not logged in');
+      loading.value = false; // Ensure loading stops if no token
       return;
     }
     
@@ -58,17 +58,15 @@ export function useAuth() {
     loading.value = true;
     try {
       const response = await authAPI.getCurrentUser();
-      console.log('API Response:', response.data);
-      
-      // Backend returns { success: true, user: {...} }
-      // So we need to extract the user object
       user.value = response.data.user || response.data;
-      console.log('User set to:', user.value);
     } catch (error) {
       console.error('Failed to fetch user:', error);
-      // Only logout if it's an auth error, not network error
-      if (error.response?.status === 401 || error.response?.status === 403) {
-        logout();
+      
+      // FIX: If the token is invalid or user doesn't exist (401/403/404), LOGOUT immediately
+      // This prevents the infinite spinner
+      if (error.response && (error.response.status === 401 || error.response.status === 403 || error.response.status === 404)) {
+        console.log("Token invalid or user not found. Logging out.");
+        logout(); 
       }
     } finally {
       loading.value = false;

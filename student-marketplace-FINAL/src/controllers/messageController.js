@@ -266,6 +266,11 @@ const getConversations = async (req, res) => {
     const conversationsMap = new Map();
 
     messages.forEach((message) => {
+      // SAFETY CHECK: Skip if listing or users are missing (deleted)
+      if (!message.listing || !message.sender || !message.receiver) {
+        return; 
+      }
+
       const otherUserId = message.senderID === userId ? message.receiverID : message.senderID;
       const conversationKey = `${message.listingID}-${otherUserId}`;
 

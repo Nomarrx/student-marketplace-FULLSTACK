@@ -1,192 +1,177 @@
 <template>
-  <div class="container-fluid py-4" style="height: calc(100vh - 200px)">
-    <div class="row h-100">
-      <!-- Left Sidebar: Conversations List -->
-      <div class="col-md-4 border-end">
-        <div class="d-flex justify-content-between align-items-center mb-3">
-          <h4 class="fw-bold mb-0">Messages</h4>
-          <span class="badge bg-primary">{{ conversations.length }}</span>
+  <div class="container-fluid py-4" style="height: 85vh;">
+    <div class="row h-100 shadow-sm rounded bg-white overflow-hidden border">
+      
+      <div class="col-md-4 border-end d-flex flex-column h-100 bg-white p-0">
+        
+        <div class="p-3 border-bottom">
+          <div class="d-flex justify-content-between align-items-center mb-3">
+            <h4 class="fw-bold mb-0">Messages</h4>
+            <span class="badge bg-primary rounded-pill">{{ conversations.length }}</span>
+          </div>
+
+          <div class="">
+            <input
+              type="text"
+              class="form-control bg-light border-0"
+              placeholder="Search messages..."
+              v-model="searchQuery"
+            />
+          </div>
         </div>
 
-        <!-- Search Messages -->
-        <div class="mb-3">
-          <input
-            type="text"
-            class="form-control"
-            placeholder="Search messages..."
-            v-model="searchQuery"
-          />
-        </div>
+        <div class="flex-grow-1 overflow-auto">
+          <div v-if="loading" class="text-center py-5">
+            <div class="spinner-border spinner-border-sm text-primary" role="status"></div>
+            <p class="text-muted small mt-2">Loading conversations...</p>
+          </div>
 
-        <!-- Conversations List -->
-        <div v-if="loading" class="text-center py-5">
-          <div class="spinner-border spinner-border-sm" role="status"></div>
-          <p class="text-muted small mt-2">Loading conversations...</p>
-        </div>
+          <div v-else-if="filteredConversations.length === 0" class="text-center py-5 px-3">
+            <i class="bi bi-chat-dots display-4 text-muted opacity-50"></i>
+            <p class="text-muted mt-3 fw-bold">No messages yet</p>
+            <small class="text-muted d-block">Start a conversation from a listing!</small>
+          </div>
 
-        <div v-else-if="filteredConversations.length === 0" class="text-center py-5">
-          <i class="bi bi-chat-dots display-4 text-muted"></i>
-          <p class="text-muted mt-3">No messages yet</p>
-          <small class="text-muted">Start a conversation with a seller!</small>
-        </div>
-
-        <div v-else class="conversation-list">
-          <div
-            v-for="conversation in filteredConversations"
-            :key="conversation.conversationId"
-            class="conversation-item p-3 border-bottom"
-            :class="{ active: selectedConversation?.conversationId === conversation.conversationId }"
-            @click="selectConversation(conversation)"
-            style="cursor: pointer"
-          >
-            <div class="d-flex align-items-start">
-              <!-- Avatar -->
-              <div class="me-3 flex-shrink-0">
-                <div
-                  v-if="conversation.otherUser.profilePicture"
-                  class="rounded-circle overflow-hidden"
-                  style="width: 50px; height: 50px"
-                >
-                  <img
-                    :src="getProfilePictureUrl(conversation.otherUser.profilePicture)"
-                    alt="Profile"
-                    style="width: 100%; height: 100%; object-fit: cover"
-                  />
+          <div v-else>
+            <div
+              v-for="conversation in filteredConversations"
+              :key="conversation.conversationId"
+              class="conversation-item p-3 border-bottom position-relative"
+              :class="{ 'active-chat': selectedConversation?.conversationId === conversation.conversationId }"
+              @click="selectConversation(conversation)"
+              style="cursor: pointer"
+            >
+              <div class="d-flex align-items-start">
+                <div class="me-3 flex-shrink-0">
+                  <div
+                    v-if="conversation.otherUser.profilePicture"
+                    class="rounded-circle overflow-hidden border"
+                    style="width: 50px; height: 50px"
+                  >
+                    <img
+                      :src="getProfilePictureUrl(conversation.otherUser.profilePicture)"
+                      alt="Profile"
+                      style="width: 100%; height: 100%; object-fit: cover"
+                    />
+                  </div>
+                  <div
+                    v-else
+                    class="bg-primary bg-gradient text-white rounded-circle d-flex align-items-center justify-content-center fw-bold shadow-sm"
+                    style="width: 50px; height: 50px; font-size: 18px"
+                  >
+                    {{ getInitials(conversation.otherUser.fullName) }}
+                  </div>
                 </div>
-                <div
-                  v-else
-                  class="bg-secondary text-white rounded-circle d-flex align-items-center justify-content-center"
-                  style="width: 50px; height: 50px; font-size: 18px"
-                >
-                  {{ getInitials(conversation.otherUser.fullName) }}
+
+                <div class="flex-grow-1 overflow-hidden">
+                  <div class="d-flex justify-content-between align-items-center mb-1">
+                    <h6 class="mb-0 fw-bold text-truncate" style="max-width: 140px;">{{ conversation.otherUser.fullName }}</h6>
+                    <small class="text-muted" style="font-size: 0.75rem;">{{ formatTime(conversation.lastMessageTime) }}</small>
+                  </div>
+                  <p class="text-primary small mb-1 fw-medium text-truncate">
+                    <i class="bi bi-tag-fill me-1"></i>{{ conversation.listing.title }}
+                  </p>
+                  <div class="d-flex justify-content-between align-items-center">
+                    <p class="text-muted small mb-0 text-truncate flex-grow-1" style="max-width: 180px;">
+                      {{ conversation.lastMessage }}
+                    </p>
+                    <span v-if="conversation.unreadCount > 0" class="badge bg-danger rounded-pill ms-2">
+                      {{ conversation.unreadCount }}
+                    </span>
+                  </div>
                 </div>
               </div>
-
-              <!-- Conversation Info -->
-              <div class="flex-grow-1 overflow-hidden">
-                <div class="d-flex justify-content-between align-items-center mb-1">
-                  <h6 class="mb-0 fw-bold">{{ conversation.otherUser.fullName }}</h6>
-                  <small class="text-muted">{{ formatTime(conversation.lastMessageTime) }}</small>
-                </div>
-                <p class="text-muted small mb-1">{{ conversation.listing.title }}</p>
-                <p class="text-muted small mb-0 text-truncate">
-                  {{ conversation.lastMessage }}
-                </p>
-              </div>
-
-              <!-- Unread Badge -->
-              <span
-                v-if="conversation.unreadCount > 0"
-                class="badge bg-primary rounded-pill ms-2"
-              >
-                {{ conversation.unreadCount }}
-              </span>
             </div>
           </div>
         </div>
       </div>
 
-      <!-- Right Side: Active Chat -->
-      <div class="col-md-8 d-flex flex-column">
-        <!-- No Conversation Selected -->
-        <div v-if="!selectedConversation" class="d-flex align-items-center justify-content-center h-100">
-          <div class="text-center">
-            <i class="bi bi-chat-left-dots display-1 text-muted"></i>
-            <h5 class="text-muted mt-3">Select a conversation to start messaging</h5>
-          </div>
+      <div class="col-md-8 d-flex flex-column h-100 p-0 bg-light">
+        
+        <div v-if="!selectedConversation" class="d-flex align-items-center justify-content-center h-100 flex-column text-center opacity-50">
+          <i class="bi bi-chat-left-text display-1 mb-3"></i>
+          <h5>Select a conversation to start messaging</h5>
         </div>
 
-        <!-- Active Chat -->
         <div v-else class="d-flex flex-column h-100">
-          <!-- Chat Header -->
-          <div class="border-bottom p-3 bg-light">
-            <div class="d-flex align-items-center">
-              <!-- Avatar -->
-              <div class="me-3">
-                <div
-                  v-if="selectedConversation.otherUser.profilePicture"
-                  class="rounded-circle overflow-hidden"
-                  style="width: 45px; height: 45px"
-                >
-                  <img
-                    :src="getProfilePictureUrl(selectedConversation.otherUser.profilePicture)"
-                    alt="Profile"
-                    style="width: 100%; height: 100%; object-fit: cover"
-                  />
+          
+          <div class="border-bottom p-3 bg-white shadow-sm z-index-1">
+            <div class="d-flex align-items-center justify-content-between">
+              <div class="d-flex align-items-center">
+                <div class="me-3">
+                  <div v-if="selectedConversation.otherUser.profilePicture" class="rounded-circle overflow-hidden" style="width: 40px; height: 40px">
+                    <img :src="getProfilePictureUrl(selectedConversation.otherUser.profilePicture)" style="width: 100%; height: 100%; object-fit: cover" />
+                  </div>
+                  <div v-else class="bg-primary text-white rounded-circle d-flex align-items-center justify-content-center" style="width: 40px; height: 40px">
+                    {{ getInitials(selectedConversation.otherUser.fullName) }}
+                  </div>
                 </div>
-                <div
-                  v-else
-                  class="bg-secondary text-white rounded-circle d-flex align-items-center justify-content-center"
-                  style="width: 45px; height: 45px; font-size: 16px"
-                >
-                  {{ getInitials(selectedConversation.otherUser.fullName) }}
+                <div>
+                  <h6 class="mb-0 fw-bold">{{ selectedConversation.otherUser.fullName }}</h6>
+                  <small class="text-muted">Item: {{ selectedConversation.listing.title }}</small>
                 </div>
               </div>
-
-              <!-- Info -->
-              <div class="flex-grow-1">
-                <h6 class="mb-0 fw-bold">{{ selectedConversation.otherUser.fullName }}</h6>
-                <small class="text-muted">Re: {{ selectedConversation.listing.title }}</small>
-              </div>
-
-              <!-- View Listing Button -->
-              <button
-                class="btn btn-outline-primary btn-sm"
-                @click="viewListing(selectedConversation.listing.listingID)"
-              >
+              <button class="btn btn-outline-primary btn-sm rounded-pill px-3" @click="viewListing(selectedConversation.listing.listingID)">
                 View Listing
               </button>
             </div>
           </div>
 
-          <!-- Messages Area -->
-          <div class="flex-grow-1 overflow-auto p-3" ref="messagesContainer" style="background-color: #f8f9fa">
+          <div class="flex-grow-1 overflow-auto p-4" ref="messagesContainer" style="background-color: #f8f9fa">
             <div v-if="loadingMessages" class="text-center py-5">
-              <div class="spinner-border spinner-border-sm" role="status"></div>
+              <div class="spinner-border spinner-border-sm text-primary" role="status"></div>
             </div>
 
             <div v-else>
-              <div
-                v-for="message in messages"
-                :key="message.messageID"
-                class="mb-3"
-                :class="message.senderID === currentUserId ? 'text-end' : 'text-start'"
-              >
-                <!-- Debug info (remove later) -->
-                <!-- <small class="text-muted">senderID: {{ message.senderID }}, currentUserId: {{ currentUserId }}</small> -->
+              <TransitionGroup name="message-anim" tag="div">
                 <div
-                  class="d-inline-block p-3 rounded-3"
-                  :class="message.senderID === currentUserId ? 'bg-dark text-white' : 'bg-white'"
-                  style="max-width: 70%"
+                  v-for="message in messages"
+                  :key="message.messageID"
+                  class="mb-3 d-flex"
+                  :class="message.senderID === currentUserId ? 'justify-content-end' : 'justify-content-start'"
                 >
-                  <p class="mb-1">{{ message.messageText }}</p>
-                  <small :class="message.senderID === currentUserId ? 'text-light' : 'text-muted'">
-                    {{ formatTime(message.sentAt) }}
-                  </small>
+                  <div
+                    class="d-inline-block p-3 rounded-4 shadow-sm text-start"
+                    :class="message.senderID === currentUserId ? 'bg-primary text-white rounded-bottom-right-0' : 'bg-white text-dark rounded-bottom-left-0'"
+                    style="max-width: 75%; min-width: 100px; position: relative"
+                  >
+                    <p class="mb-1" style="word-wrap: break-word;">{{ message.messageText }}</p>
+                    
+                    <div class="d-flex align-items-center justify-content-end gap-1 mt-1">
+                      <small :class="message.senderID === currentUserId ? 'text-white-50' : 'text-muted'" style="font-size: 0.7rem;">
+                        {{ formatTime(message.sentAt) }}
+                      </small>
+                      <span v-if="message.senderID === currentUserId" class="ms-1" style="font-size: 0.9rem; line-height: 1;">
+                        <i v-if="message.isRead" class="bi bi-check-all text-white" title="Read"></i>
+                        <i v-else class="bi bi-check text-white-50" title="Sent"></i>
+                      </span>
+                    </div>
+                  </div>
                 </div>
-              </div>
+              </TransitionGroup>
             </div>
           </div>
 
-          <!-- Message Input -->
           <div class="border-top p-3 bg-white">
             <form @submit.prevent="sendMessage" class="d-flex gap-2">
               <input
                 type="text"
-                class="form-control"
+                class="form-control bg-light border-0 py-2"
                 placeholder="Type your message..."
                 v-model="newMessage"
                 :disabled="sending"
               />
               <button
                 type="submit"
-                class="btn btn-dark px-4"
+                class="btn btn-primary px-4"
                 :disabled="!newMessage.trim() || sending"
               >
-                {{ sending ? 'Sending...' : 'Send' }}
+                <span v-if="sending" class="spinner-border spinner-border-sm me-1"></span>
+                <i v-else class="bi bi-send-fill"></i>
               </button>
             </form>
           </div>
+
         </div>
       </div>
     </div>
@@ -194,7 +179,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, nextTick, watch } from 'vue';
+import { ref, computed, onMounted, onUnmounted, nextTick, watch } from 'vue';
 import { useRouter } from 'vue-router';
 import { useAuth } from '../composables/useAuth';
 import axios from 'axios';
@@ -212,10 +197,13 @@ const selectedConversation = ref(null);
 const messages = ref([]);
 const newMessage = ref('');
 const messagesContainer = ref(null);
+let pollingInterval = null;
+
+// Simple notification sound
+const notificationSound = new Audio('https://cdn.freesound.org/previews/536/536108_11562226-lq.mp3');
 
 const currentUserId = computed(() => {
   const userId = user.value?.userID;
-  console.log('Current user ID:', userId);
   return userId;
 });
 
@@ -239,60 +227,38 @@ const checkPendingMessage = async () => {
     try {
       const { listingID, sellerID, listingTitle, sellerName } = JSON.parse(pendingData);
       
-      // Clear pending message
       localStorage.removeItem('pendingMessage');
       
-      // Check if conversation already exists
       const existingConv = conversations.value.find(
         c => c.listing.listingID === listingID && c.otherUser.userID === sellerID
       );
       
       if (existingConv) {
-        // Open existing conversation
         selectConversation(existingConv);
       } else {
-        // Create a temporary conversation object and open it
         const tempConv = {
           conversationId: `${listingID}-${sellerID}`,
-          listing: {
-            listingID: listingID,
-            title: listingTitle
-          },
-          otherUser: {
-            userID: sellerID,
-            fullName: sellerName,
-            email: '',
-            profilePicture: null
-          },
+          listing: { listingID: listingID, title: listingTitle },
+          otherUser: { userID: sellerID, fullName: sellerName, email: '', profilePicture: null },
           lastMessage: '',
           lastMessageTime: new Date(),
           unreadCount: 0
         };
-        
-        // Add to conversations list temporarily
         conversations.value.unshift(tempConv);
-        
-        // Select it
         selectConversation(tempConv);
       }
     } catch (error) {
       console.error('Failed to process pending message:', error);
     }
   } else {
-    // Check if there was a selected conversation before refresh
     const savedConv = localStorage.getItem('selectedConversation');
     if (savedConv) {
       try {
         const { listingID, otherUserID } = JSON.parse(savedConv);
-        
-        // Find the conversation in the loaded list
         const conv = conversations.value.find(
           c => c.listing.listingID === listingID && c.otherUser.userID === otherUserID
         );
-        
-        if (conv) {
-          selectConversation(conv);
-        }
+        if (conv) selectConversation(conv);
       } catch (error) {
         console.error('Failed to restore conversation:', error);
       }
@@ -300,16 +266,12 @@ const checkPendingMessage = async () => {
   }
 };
 
-// Fetch all conversations
 const fetchConversations = async () => {
   loading.value = true;
   try {
     const response = await axios.get('http://localhost:5000/api/messages/conversations', {
-      headers: {
-        Authorization: `Bearer ${localStorage.getItem('token')}`
-      }
+      headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
     });
-
     conversations.value = response.data.conversations || [];
   } catch (error) {
     console.error('Failed to fetch conversations:', error);
@@ -318,12 +280,9 @@ const fetchConversations = async () => {
   }
 };
 
-// Select a conversation
 const selectConversation = async (conversation) => {
-  console.log('Selecting conversation:', conversation);
   selectedConversation.value = conversation;
   
-  // Save to localStorage so it persists on refresh
   localStorage.setItem('selectedConversation', JSON.stringify({
     conversationId: conversation.conversationId,
     listingID: conversation.listing.listingID,
@@ -331,30 +290,19 @@ const selectConversation = async (conversation) => {
   }));
   
   await fetchMessages(conversation.listing.listingID, conversation.otherUser.userID);
+  startPolling();
 };
 
-// Fetch messages for a conversation
 const fetchMessages = async (listingId, otherUserId) => {
   loadingMessages.value = true;
-  messages.value = []; // Clear old messages
+  messages.value = [];
   
   try {
-    console.log('Fetching messages for listing:', listingId, 'with user:', otherUserId);
-    
     const response = await axios.get(
       `http://localhost:5000/api/messages/${listingId}/${otherUserId}`,
-      {
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem('token')}`
-        }
-      }
+      { headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } }
     );
-
-    console.log('Messages response:', response.data);
     messages.value = response.data.messages || [];
-    console.log('Loaded messages:', messages.value);
-
-    // Scroll to bottom after loading
     await nextTick();
     scrollToBottom();
   } catch (error) {
@@ -365,57 +313,35 @@ const fetchMessages = async (listingId, otherUserId) => {
   }
 };
 
-// Send a message
 const sendMessage = async () => {
   if (!newMessage.value.trim() || !selectedConversation.value) return;
 
   sending.value = true;
   const messageText = newMessage.value.trim();
-  
-  // Store current conversation details
   const listingID = selectedConversation.value.listing.listingID;
   const receiverID = selectedConversation.value.otherUser.userID;
 
   try {
     const response = await axios.post(
       'http://localhost:5000/api/messages',
-      {
-        listingID: listingID,
-        receiverID: receiverID,
-        messageText: messageText
-      },
-      {
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem('token')}`
-        }
-      }
+      { listingID, receiverID, messageText },
+      { headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } }
     );
 
-    // Add message to current chat
     messages.value.push(response.data.message);
-
-    // Clear input
     newMessage.value = '';
-
-    // Scroll to bottom
     await nextTick();
     scrollToBottom();
 
-    // DON'T refresh conversations - just update the current one
     const convIndex = conversations.value.findIndex(
       c => c.listing.listingID === listingID && c.otherUser.userID === receiverID
     );
     
     if (convIndex !== -1) {
-      // Update existing conversation
       conversations.value[convIndex].lastMessage = messageText;
       conversations.value[convIndex].lastMessageTime = response.data.message.sentAt;
-      
-      // Move to top
       const conv = conversations.value.splice(convIndex, 1)[0];
       conversations.value.unshift(conv);
-      
-      // Keep it selected
       selectedConversation.value = conv;
     }
   } catch (error) {
@@ -424,6 +350,56 @@ const sendMessage = async () => {
   } finally {
     sending.value = false;
   }
+};
+
+const startPolling = () => {
+  stopPolling();
+  pollingInterval = setInterval(async () => {
+    if (selectedConversation.value) {
+      try {
+        const listingId = selectedConversation.value.listing.listingID;
+        const otherUserId = selectedConversation.value.otherUser.userID;
+        
+        const response = await axios.get(
+          `http://localhost:5000/api/messages/${listingId}/${otherUserId}`,
+          { headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } }
+        );
+        
+        const newMessages = response.data.messages || [];
+        const hasChanges = JSON.stringify(newMessages) !== JSON.stringify(messages.value);
+
+        if (hasChanges) {
+          if (newMessages.length > messages.value.length) {
+            const lastMsg = newMessages[newMessages.length - 1];
+            if (lastMsg.senderID !== currentUserId.value) {
+              try {
+                notificationSound.currentTime = 0;
+                notificationSound.play();
+              } catch (e) {
+                console.log("Audio autoplay prevented", e);
+              }
+              const originalTitle = document.title;
+              document.title = "💬 New Message!";
+              setTimeout(() => document.title = originalTitle, 3000);
+            }
+          }
+
+          messages.value = newMessages;
+          
+          if (newMessages.length > messages.value.length) {
+             await nextTick();
+             scrollToBottom();
+          }
+        }
+      } catch (e) {
+        console.error("Polling error", e);
+      }
+    }
+  }, 3000);
+};
+
+const stopPolling = () => {
+  if (pollingInterval) clearInterval(pollingInterval);
 };
 
 const scrollToBottom = () => {
@@ -443,17 +419,11 @@ const getProfilePictureUrl = (picturePath) => {
 
 const getInitials = (name) => {
   if (!name) return '?';
-  return name
-    .split(' ')
-    .map((word) => word[0])
-    .join('')
-    .toUpperCase()
-    .substring(0, 2);
+  return name.split(' ').map((word) => word[0]).join('').toUpperCase().substring(0, 2);
 };
 
 const formatTime = (date) => {
   if (!date) return '';
-
   const now = new Date();
   const messageDate = new Date(date);
   const diffMs = now - messageDate;
@@ -466,7 +436,6 @@ const formatTime = (date) => {
   if (diffHours < 24) return `${diffHours}h ago`;
   if (diffDays === 1) return 'Yesterday';
   if (diffDays < 7) return `${diffDays}d ago`;
-
   return messageDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 };
 
@@ -474,30 +443,55 @@ onMounted(async () => {
   await fetchConversations();
   checkPendingMessage();
 });
+
+onUnmounted(() => {
+  stopPolling();
+});
 </script>
 
 <style scoped>
-.conversation-item {
-  transition: background-color 0.2s;
-}
-
+/* Scoped styles for highlighting the active chat */
 .conversation-item:hover {
   background-color: #f8f9fa;
 }
 
-.conversation-item.active {
-  background-color: #e7f3ff;
-  border-left: 3px solid #0d6efd;
+.active-chat {
+  background-color: #e7f3ff !important;
+  border-left: 4px solid #0d6efd;
 }
 
-.conversation-list {
-  max-height: calc(100vh - 300px);
-  overflow-y: auto;
+/* Animations */
+.message-anim-enter-active,
+.message-anim-leave-active {
+  transition: all 0.3s ease;
 }
 
-.text-truncate {
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+.message-anim-enter-from {
+  opacity: 0;
+  transform: translateY(20px);
+}
+
+.message-anim-leave-to {
+  opacity: 0;
+}
+
+.rounded-bottom-right-0 {
+  border-bottom-right-radius: 0 !important;
+}
+
+.rounded-bottom-left-0 {
+  border-bottom-left-radius: 0 !important;
+}
+
+/* Custom Scrollbar */
+.overflow-auto::-webkit-scrollbar {
+  width: 6px;
+}
+.overflow-auto::-webkit-scrollbar-track {
+  background: transparent;
+}
+.overflow-auto::-webkit-scrollbar-thumb {
+  background-color: #ced4da;
+  border-radius: 10px;
 }
 </style>

@@ -21,9 +21,8 @@ api.interceptors.request.use((config) => {
 
 // Auth API
 export const authAPI = {
-  register: (formData) => api.post('/auth/register', formData, {
-    headers: { 'Content-Type': 'multipart/form-data' }
-  }),
+  // FIX: Removed manual Content-Type header
+  register: (formData) => api.post('/auth/register', formData),
   login: (credentials) => api.post('/auth/login', credentials),
   getCurrentUser: () => api.get('/auth/profile'),
 };
@@ -33,12 +32,10 @@ export const listingsAPI = {
   getAll: (params) => api.get('/listings', { params }),
   getById: (id) => api.get(`/listings/${id}`),
   getUserListings: () => api.get('/listings/user'),
-  create: (formData) => api.post('/listings', formData, {
-    headers: { 'Content-Type': 'multipart/form-data' }
-  }),
-  update: (id, data) => api.put(`/listings/${id}`, data, {
-    headers: { 'Content-Type': 'multipart/form-data' }
-  }),
+  // FIX: Removed manual Content-Type header
+  create: (formData) => api.post('/listings', formData),
+  // FIX: Removed manual Content-Type header
+  update: (id, data) => api.put(`/listings/${id}`, data),
   delete: (id) => api.delete(`/listings/${id}`),
 };
 
